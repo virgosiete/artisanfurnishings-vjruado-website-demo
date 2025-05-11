@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply font-sans text-gray-800 bg-white;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif leading-tight;
+  }
+  
+  h1 {
+    @apply text-4xl md:text-5xl lg:text-6xl font-semibold;
+  }
+  
+  h2 {
+    @apply text-3xl md:text-4xl font-semibold;
+  }
+  
+  h3 {
+    @apply text-2xl md:text-3xl font-medium;
+  }
+  
+  p {
+    @apply leading-relaxed;
+  }
+}
+
+@layer components {
+  .container {
+    @apply px-4 md:px-8 mx-auto max-w-7xl;
+  }
+  
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 text-sm font-medium transition-colors duration-200 rounded-none;
+  }
+  
+  .btn-primary {
+    @apply bg-primary-800 text-white hover:bg-primary-900;
+  }
+  
+  .btn-secondary {
+    @apply bg-transparent border border-primary-800 text-primary-800 hover:bg-primary-50;
+  }
+  
+  .section {
+    @apply py-16 md:py-24;
+  }
+  
+  .section-title {
+    @apply mb-12 text-center;
+  }
+  
+  .section-subtitle {
+    @apply text-lg text-primary-700 font-medium mt-2;
+  }
+  
+  .input {
+    @apply w-full px-4 py-3 border border-gray-300 focus:border-primary-500 focus:outline-none;
+  }
+  
+  .product-card {
+    @apply relative overflow-hidden;
+  }
+  
+  .product-card-image {
+    @apply object-cover w-full h-full transition-transform duration-700 ease-in-out;
+  }
+  
+  .product-card-overlay {
+    @apply absolute inset-0 flex flex-col items-center justify-center p-6 text-white bg-black bg-opacity-20 opacity-0 transition-opacity duration-300 group-hover:opacity-100;
+  }
+}
+
+/* Custom utilities */
+.text-balance {
+  text-wrap: balance;
+}
+
+.bg-overlay {
+  @apply absolute inset-0 bg-black bg-opacity-50;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
