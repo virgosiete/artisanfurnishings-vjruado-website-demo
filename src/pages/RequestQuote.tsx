@@ -75,16 +75,16 @@ const RequestQuote: React.FC = () => {
       
       // Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('quote_files')
+        .from('quotefiles')
         .upload(filePath, file);
       
       if (uploadError) {
         throw new Error(`Error uploading file: ${uploadError.message}`);
       }
       
-      // Insert file record into quote_files table
+      // Insert file record into quotefiles table
       const { error: insertError } = await supabase
-        .from('quote_files')
+        .from('quotefiles')
         .insert({
           quote_id: quoteId,
           file_name: file.name,
