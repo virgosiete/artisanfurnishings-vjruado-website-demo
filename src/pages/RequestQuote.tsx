@@ -1,15 +1,59 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
+import { Upload, FilePlus, AlertCircle, FileCheck } from 'lucide-react';
 import Hero from '../components/Hero';
 import SectionTitle from '../components/SectionTitle';
 
 const RequestQuote: React.FC = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
+  const [files, setFiles] = useState<File[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  
+  const maxFileSize = 500 * 1024 * 1024; // 500MB in bytes
+  const allowedFileTypes = [
+    '.pdf', '.dwg', '.dxf', '.dwf', '.skp', '.3ds', 
+    '.max', '.obj', '.stl', '.rvt', '.rfa', '.jpg', 
+    '.jpeg', '.png', '.tiff', '.bmp', '.ai', '.psd'
+  ];
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    setFileError(null);
+    setUploadSuccess(false);
+    
+    if (!selectedFiles || selectedFiles.length === 0) return;
+    
+    // Check file size
+    for (let i = 0; i < selectedFiles.length; i++) {
+      if (selectedFiles[i].size > maxFileSize) {
+        setFileError(`File "${selectedFiles[i].name}" exceeds the maximum size of 500MB.`);
+        return;
+      }
+    }
+    
+    // Add files to state
+    const newFiles = Array.from(selectedFiles);
+    setFiles(prevFiles => [...prevFiles, ...newFiles]);
+    setUploadSuccess(true);
+  };
+  
+  const removeFile = (index: number) => {
+    setFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
+  };
+  
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(2) + ' KB';
+    else if (bytes < 1073741824) return (bytes / 1048576).toFixed(2) + ' MB';
+    else return (bytes / 1073741824).toFixed(2) + ' GB';
+  };
   
   const onSubmit = (data: any) => {
     console.log(data);
-    // In a real application, this would send the data to a server
+    console.log('Files:', files);
+    // In a real application, this would send the data and files to a server
     alert("Thank you for your request. We'll be in touch shortly to discuss your project.");
   };
 
@@ -154,6 +198,76 @@ const RequestQuote: React.FC = () => {
                     {...register('projectDescription', { required: true })}
                   ></textarea>
                   {errors.projectDescription && <span className="text-red-500 text-sm mt-1">Please provide a description of your project</span>}
+                </div>
+                
+                {/* File Upload Component */}
+                <div className="mb-8">
+                  <h3 className="text-xl font-semibold mb-4">Upload Your Plans or Drawings</h3>
+                  <p className="text-gray-600 mb-4">
+                    You can upload architectural drawings, CAD files, or any other visual references to help us better understand your vision. 
+                    (Max file size: 500MB per file)
+                  </p>
+                  
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 transition-colors duration-300 hover:border-primary-500 mb-4">
+                    <div className="text-center">
+                      <FilePlus className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                      <p className="text-gray-700 mb-2">Drag and drop your files here, or click to browse</p>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Supported formats: PDF, DWG, DXF, DWF, SKP, 3DS, MAX, OBJ, STL, RVT, RFA, and image formats
+                      </p>
+                      <label className="btn btn-secondary relative cursor-pointer">
+                        <input
+                          type="file"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          multiple
+                          accept={allowedFileTypes.join(',')}
+                          onChange={handleFileChange}
+                        />
+                        <Upload size={16} className="mr-2" />
+                        <span>Choose Files</span>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {fileError && (
+                    <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-lg flex items-start">
+                      <AlertCircle size={20} className="mr-2 flex-shrink-0 mt-0.5" />
+                      <span>{fileError}</span>
+                    </div>
+                  )}
+                  
+                  {uploadSuccess && !fileError && (
+                    <div className="mb-4 p-4 bg-green-50 text-green-700 rounded-lg flex items-center">
+                      <FileCheck size={20} className="mr-2" />
+                      <span>Files added successfully!</span>
+                    </div>
+                  )}
+                  
+                  {files.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-medium mb-2">Uploaded Files:</h4>
+                      <ul className="space-y-2">
+                        {files.map((file, index) => (
+                          <li key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded">
+                            <div className="flex items-center">
+                              <FileCheck size={20} className="mr-2 text-primary-600" />
+                              <div>
+                                <p className="font-medium">{file.name}</p>
+                                <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
+                              </div>
+                            </div>
+                            <button 
+                              type="button"
+                              className="text-gray-500 hover:text-red-600"
+                              onClick={() => removeFile(index)}
+                            >
+                              Remove
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="mb-8">
