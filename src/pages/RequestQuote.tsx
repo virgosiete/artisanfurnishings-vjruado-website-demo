@@ -1,15 +1,31 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
-import { Upload, FilePlus, AlertCircle, FileCheck } from 'lucide-react';
+import { Upload, FilePlus, AlertCircle, FileCheck, Loader } from 'lucide-react';
 import Hero from '../components/Hero';
 import SectionTitle from '../components/SectionTitle';
+import { supabase } from '../lib/supabase';
+
+type FormData = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  projectType: string;
+  timeframe?: string;
+  budget?: string;
+  projectDescription: string;
+  newsletter: boolean;
+};
 
 const RequestQuote: React.FC = () => {
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormData>();
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formSuccess, setFormSuccess] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   
   const maxFileSize = 500 * 1024 * 1024; // 500MB in bytes
   const allowedFileTypes = [
@@ -50,11 +66,89 @@ const RequestQuote: React.FC = () => {
     else return (bytes / 1073741824).toFixed(2) + ' GB';
   };
   
-  const onSubmit = (data: any) => {
-    console.log(data);
-    console.log('Files:', files);
-    // In a real application, this would send the data and files to a server
-    alert("Thank you for your request. We'll be in touch shortly to discuss your project.");
+  const uploadFilesToSupabase = async (quoteId: string) => {
+    // Create a storage bucket if it doesn't exist (this is usually done in the Supabase dashboard)
+    const filePromises = files.map(async (file) => {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const filePath = `${quoteId}/${fileName}`;
+      
+      // Upload file to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('quote_files')
+        .upload(filePath, file);
+      
+      if (uploadError) {
+        throw new Error(`Error uploading file: ${uploadError.message}`);
+      }
+      
+      // Insert file record into quote_files table
+      const { error: insertError } = await supabase
+        .from('quote_files')
+        .insert({
+          quote_id: quoteId,
+          file_name: file.name,
+          file_path: filePath,
+          file_size: file.size,
+          file_type: file.type
+        });
+      
+      if (insertError) {
+        throw new Error(`Error inserting file record: ${insertError.message}`);
+      }
+      
+      return uploadData;
+    });
+    
+    return Promise.all(filePromises);
+  };
+  
+  const onSubmit = async (data: FormData) => {
+    try {
+      setSubmitting(true);
+      setFormError(null);
+      
+      // Insert quote data into Supabase
+      const { data: quoteData, error: quoteError } = await supabase
+        .from('quotes')
+        .insert({
+          first_name: data.firstName,
+          last_name: data.lastName,
+          email: data.email,
+          phone: data.phone || null,
+          project_type: data.projectType,
+          timeframe: data.timeframe || null,
+          budget: data.budget || null,
+          project_description: data.projectDescription,
+          newsletter: data.newsletter || false
+        })
+        .select();
+      
+      if (quoteError) {
+        throw new Error(`Error submitting request: ${quoteError.message}`);
+      }
+      
+      // Upload files if there are any
+      if (files.length > 0 && quoteData && quoteData[0]) {
+        const quoteId = quoteData[0].id;
+        await uploadFilesToSupabase(quoteId);
+      }
+      
+      setFormSuccess(true);
+      reset();
+      setFiles([]);
+      setUploadSuccess(false);
+      
+      // Reset form state after success message
+      setTimeout(() => {
+        setFormSuccess(false);
+      }, 5000);
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      setFormError(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -76,6 +170,30 @@ const RequestQuote: React.FC = () => {
                 subtitle="Share your vision with us"
                 centered={false}
               />
+              
+              {formSuccess && (
+                <motion.div 
+                  className="mb-8 p-4 bg-green-50 text-green-700 rounded-lg flex items-center"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <FileCheck size={20} className="mr-2" />
+                  <span>Thank you for your request! We'll be in touch shortly to discuss your project.</span>
+                </motion.div>
+              )}
+              
+              {formError && (
+                <motion.div 
+                  className="mb-8 p-4 bg-red-50 text-red-700 rounded-lg flex items-start"
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <AlertCircle size={20} className="mr-2 flex-shrink-0 mt-0.5" />
+                  <span>{formError}</span>
+                </motion.div>
+              )}
               
               <motion.form 
                 className="mt-8"
@@ -283,8 +401,19 @@ const RequestQuote: React.FC = () => {
                   </label>
                 </div>
                 
-                <button type="submit" className="btn btn-primary">
-                  Submit Quote Request
+                <button 
+                  type="submit" 
+                  className="btn btn-primary flex items-center"
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader size={16} className="mr-2 animate-spin" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <span>Submit Quote Request</span>
+                  )}
                 </button>
               </motion.form>
             </div>
