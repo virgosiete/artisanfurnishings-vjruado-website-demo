@@ -21,17 +21,21 @@ export function useFileInput({ accept, maxSize }: UseFileInputOptions) {
         setError("");
 
         if (file) {
+            // Size validation
             if (maxSize && file.size > maxSize * 1024 * 1024) {
                 setError(`File size must be less than ${maxSize}MB`);
                 return;
             }
 
-            if (
-                accept &&
-                !file.type.match(accept.replace("/*", "/"))
-            ) {
-                setError(`File type must be ${accept}`);
-                return;
+            // File extension validation
+            if (accept) {
+                const fileExtension = `.${file.name.split('.').pop()?.toLowerCase()}`;
+                const acceptedExtensions = accept.toLowerCase().split(',');
+                
+                if (!acceptedExtensions.includes(fileExtension)) {
+                    setError(`File type must be ${accept}`);
+                    return;
+                }
             }
 
             setFileSize(file.size);
