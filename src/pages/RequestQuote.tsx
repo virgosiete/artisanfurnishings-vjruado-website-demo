@@ -57,16 +57,18 @@ const RequestQuote: React.FC = () => {
       const filePath = `${quoteId}/${fileName}`;
       
       const { error: uploadError } = await supabase.storage
-        .from('quotefiles')
+        .from('files')
         .upload(filePath, fileObject);
       
       if (uploadError) {
         throw new Error(`Error uploading file: ${uploadError.message}`);
       }
       
-      // Insert file record into quotefiles table
+      // Insert file record into quote_files table
+      // can't use storage trigger for this operation because of this issue https://github.com/orgs/supabase/discussions/19017#discussioncomment-7934768
+      // storage api might change in future again
       const { error: insertError } = await supabase
-        .from('quotefiles')
+        .from('quote_files')
         .insert({
           quote_id: quoteId,
           file_name: fileObject.name,
@@ -90,29 +92,28 @@ const RequestQuote: React.FC = () => {
       setFormError(null);
       
       // Insert quote data into Supabase
-      const { data: quoteData, error: quoteError } = await supabase
-        .from('quotes')
-        .insert({
-          first_name: data.firstName,
-          last_name: data.lastName,
-          email: data.email,
-          phone: data.phone || null,
-          project_type: data.projectType,
-          timeframe: data.timeframe || null,
-          budget: data.budget || null,
-          project_description: data.projectDescription,
-          newsletter: data.newsletter || false
-        })
-        .select();
+      const { data: newQuoteId, error: quoteError } = await supabase.rpc(
+        "insert_quote",
+        {
+          _first_name: data.firstName,
+          _last_name: data.lastName,
+          _email: data.email,
+          _phone: data.phone || null,
+          _project_type: data.projectType,
+          _timeframe: data.timeframe || null,
+          _budget: data.budget || null,
+          _project_description: data.projectDescription,
+          _newsletter: data.newsletter || false
+        }
+      );
       
       if (quoteError) {
         throw new Error(`Error submitting request: ${quoteError.message}`);
       }
       
       // Upload file if there is one
-      if (fileObject && quoteData && quoteData[0]) {
-        const quoteId = quoteData[0].id;
-        await uploadFileToSupabase(quoteId);
+      if (fileObject && newQuoteId) {
+        await uploadFileToSupabase(newQuoteId);
       }
       
       setFormSuccess(true);
