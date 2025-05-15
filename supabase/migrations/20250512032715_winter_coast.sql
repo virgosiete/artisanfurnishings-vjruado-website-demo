@@ -62,23 +62,81 @@ ALTER TABLE quote_files ENABLE ROW LEVEL SECURITY;
 -- Create policy to allow anyone to insert quotes (public form submissions)
 CREATE POLICY "Anyone can insert quotes" ON quotes
   FOR INSERT
-  TO public
+  TO anon
   WITH CHECK (true);
 
 -- Create policy to allow anyone to insert quote_files
 CREATE POLICY "Anyone can insert quote_files" ON quote_files
   FOR INSERT
-  TO public
+  TO anon
   WITH CHECK (true);
 
 -- Create policy for service role to read quotes data
-CREATE POLICY "Service role can read quotes" ON quotes
-  FOR SELECT
-  TO service_role
-  USING (true);
+-- CREATE POLICY "Service role can read quotes" ON quotes
+--   FOR SELECT
+--   TO service_role
+--   USING (true);
 
 -- Create policy for service role to read quote_files data
-CREATE POLICY "Service role can read quote_files" ON quote_files
-  FOR SELECT
-  TO service_role
-  USING (true);
+-- CREATE POLICY "Service role can read quote_files" ON quote_files
+--   FOR SELECT
+--   TO service_role
+--   USING (true);
+
+-- Create a function for inserting quotes in table which returns the id the inserted row
+CREATE OR REPLACE FUNCTION insert_quote(
+  _first_name TEXT,
+  _last_name TEXT,
+  _email TEXT,
+  _project_type TEXT,
+  _project_description TEXT,
+  _phone TEXT DEFAULT NULL,
+  _timeframe TEXT DEFAULT NULL,
+  _budget TEXT DEFAULT NULL,
+  _newsletter boolean DEFAULT FALSE
+) returns uuid 
+language plpgsql 
+security definer
+set search_path = '' 
+AS $$
+declare
+  new_id uuid := gen_random_uuid();
+begin
+  insert into public.quotes (
+    id,
+    first_name,
+    last_name,
+    email,
+    phone,
+    project_type,
+    timeframe,
+    budget,
+    project_description,
+    newsletter
+  )
+  values (
+    new_id,
+    _first_name,
+    _last_name,
+    _email,
+    _phone,
+    _project_type,
+    _timeframe,
+    _budget,
+    _project_description,
+    _newsletter
+  );
+
+  return new_id;
+end;
+$$;
+
+-- Create bucket for storing files
+INSERT INTO storage.buckets (id, name) VALUES ('files', 'files');
+
+-- Create policy on files bucket
+CREATE POLICY "Allow anyone to upload file"
+ON storage.objects
+FOR INSERT
+TO anon
+WITH CHECK (bucket_id = 'files')
